@@ -1,5 +1,4 @@
-package ui;
-
+package ui.tests;
 
 import com.tngtech.java.junit.dataprovider.DataProvider;
 import com.tngtech.java.junit.dataprovider.DataProviderRunner;
@@ -23,14 +22,18 @@ import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.support.ui.ExpectedCondition;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+import ui.TestBase;
+
+import java.util.concurrent.TimeUnit;
 
 import static org.hamcrest.MatcherAssert.assertThat;
 
 @RunWith(DataProviderRunner.class)
-public class highloadTest {
-    WebDriver driver;
-    BrowserMobProxy browserMobProxy;
+public class RequestTest {
+    private WebDriver driver;
+    private BrowserMobProxy browserMobProxy;
 
     @DataProvider(format = "%m [Post: %p[0]]")
     public static Object[][] dataProviderAdd() {
@@ -42,8 +45,9 @@ public class highloadTest {
     }
 
 
+
     @Before
-    public void setUp() throws Exception {
+    public void setUp() {
         ChromeDriverManager.getInstance().setup();
         browserMobProxy = new BrowserMobProxyServer();
         browserMobProxy.start();
@@ -51,6 +55,7 @@ public class highloadTest {
         DesiredCapabilities desiredCapabilities = new DesiredCapabilities();
         desiredCapabilities.setCapability(CapabilityType.PROXY, seleniumProxyConfiguration);
         driver = new ChromeDriver(desiredCapabilities);
+        driver.manage().timeouts().implicitlyWait(10, TimeUnit.SECONDS);
         driver.get("https://ruhighload.com/");
         assertThat("HighLoad isn`t download", driver.findElement(By.id("head")).isDisplayed());
     }
@@ -59,11 +64,11 @@ public class highloadTest {
     @Test
     @DisplayName("Data tracking test")
     @UseDataProvider("dataProviderAdd")
-    public void secondTest(int postNumber) {
+    public void secondTest(int postNumber) throws InterruptedException {
         browserMobProxy.newHar();
         openPost(postNumber);
-        ;
         waitForPageLoaded();
+        Thread.sleep(3000);
         assertThat("Request not found", searchRequest(browserMobProxy.getHar(), "https://tt.onthe.io/?k[]=28:pageviews"));
     }
 
@@ -85,7 +90,7 @@ public class highloadTest {
     }
 
     @After
-    public void tearDown() throws Exception {
+    public void tearDown() {
         try {
             saveScreenshot();
         } catch (Exception ignored) {
@@ -114,12 +119,8 @@ public class highloadTest {
     @Step
     public void waitForPageLoaded() {
         WebDriverWait wait = new WebDriverWait(driver, 30);
-        wait.until(new ExpectedCondition<Boolean>() {
-            public Boolean apply(WebDriver wdriver) {
-                return ((JavascriptExecutor) driver).executeScript(
-                        "return document.readyState"
-                ).equals("complete");
-            }
-        });
+        wait.until((ExpectedCondition<Boolean>) wdriver -> ((JavascriptExecutor) driver).executeScript(
+                "return document.readyState"
+        ).equals("complete"));
     }
 }
